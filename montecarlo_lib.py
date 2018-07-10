@@ -1,6 +1,7 @@
 
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 
 from copy import copy,deepcopy
 
@@ -43,7 +44,7 @@ class checkers_state:
     
     def show_board(self):
         #plt.clf()
-        rcParams['figure.figsize'] = 4,4
+
         #fig, ax = plt.subplots() # note we must use plt.subplots, not plt.subplot
         # (or if you have an existing figure)
         # fig = plt.gcf()
@@ -396,7 +397,8 @@ class MonteCarloTree:
                  log_tree_building = False, 
                  num_simulations = 1,
                  endgame_predictor = None,
-                 max_steps_to_simulate = 100):
+                 max_steps_to_simulate = 100,
+                 save_simulations = False):
         
         self.root = Node(game_state, index = 0, depth = 0)
         self.budget = budget
@@ -408,6 +410,7 @@ class MonteCarloTree:
         self.root_player = game_state.player
         self.num_simulations = num_simulations
         self.endgame_predictor = endgame_predictor
+        self.save_simulations = save_simulations
         
     def result(self):
         '''
@@ -449,14 +452,21 @@ class MonteCarloTree:
             else:
                 total_Q = 0
                 results = []
-                games = []
+                if self.save_simulations:
+                    games = []
+                else:
+                    games = None
                 for i in range(self.num_simulations):
-                    Q, game_states = self.Simulate(next_node, return_game_states = True)
+                    if self.save_simulations:
+                        Q, game_states = self.Simulate(next_node, return_game_states = True)
+                        games.append(game_states)
+                    else:
+                        Q = self.Simulate(next_node, return_game_states = False)
                     total_Q += Q
                     results.append(Q)
-                    games.append(game_states)
+                    
                     #next_node.all_simulation_results.append(Q)
-                self.BackPropogate(next_node, results,  self.num_simulations, games,)
+                self.BackPropogate(next_node, results,  self.num_simulations, games)
 
                 
         if self.result() == 'loss':
@@ -632,7 +642,8 @@ class MonteCarloTree:
             node.N += num_trials
             node.all_simulation_results += results
             node_index = node.parent
-            node.games += games
+            if not games is None:
+                node.games += games
     
     def BestChild(self, node, explore = True, display_scores = False):
         #Perform Sophie's Choice
